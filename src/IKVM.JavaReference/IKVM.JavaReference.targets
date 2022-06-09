@@ -103,7 +103,7 @@
           Log.LogMessage(MessageImportance.High, $"Writing POM file to '{OutputFilePath}'.");
           var currentDirectory = Path.GetDirectoryName(OutputFilePath.ToString());
           var fileName = Path.GetFileName(OutputFilePath.ToString());
-          var parentFilePath = Path.Combine(Directory.GetParent(currentDirectory).FullName, fileName);
+          var projectFilePath = Path.Combine(Directory.GetParent(currentDirectory).Parent.FullName, fileName);
           Directory.CreateDirectory(currentDirectory);
           var settings = new XmlWriterSettings
           {
@@ -125,7 +125,7 @@
               // maven repository URLs and credentials. They can also configure
               // additional parent pom.xml files if they so choose.
               // TODO: Is there a way to utilize the Credential Manager?
-              if (File.Exists(parentFilePath))
+              if (File.Exists(projectFilePath))
               {
                   w.WriteStartElement("parent");
 
@@ -142,7 +142,7 @@
                   w.WriteEndElement();
 
                   w.WriteStartElement("relativePath");
-                  w.WriteValue("../" + fileName);
+                  w.WriteValue("../../" + fileName);
                   w.WriteEndElement();
 
                   w.WriteEndElement(); // parent
