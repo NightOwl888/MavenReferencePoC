@@ -1,4 +1,4 @@
-#MavenReference Proof-of-Concept
+# MavenReference Proof-of-Concept
 
 This project uses an MSBuild `IKVM.JavaReference.targets` file and a temporary NuGet package named `IKVM.JavaReference` to demonstrate how making a `<MavenReference>` project element can function. It uses the `mvn` command line utility to resolve the Maven dependencies and then uses the [copy-dependencies](https://maven.apache.org/plugins/maven-dependency-plugin/copy-dependencies-mojo.html) plugin to copy the `.jar` files from the `.m2` cache to the `obj/jar/` directory of the project.
 
