@@ -1,7 +1,22 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <!-- MavenHome can be set as a property or as MAVEN_HOME environment variable. -->
+    <!-- It should not include /bin! -->
+    <!--<MavenHome>F:\mvn-sample\apache-maven-3.8.5</MavenHome>-->
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- NOTE: This reference will end up in the .nuget cache, so whenever
+      IKVM.JavaReference is updated, the .nuget cache must be manually deleted. -->
+    <PackageReference Include="IKVM.JavaReference" Version="1.0.0" />
+  </ItemGroup>
+    
+  <ItemGroup>
+    <MavenReference Include="opennlp-tools" Version="1.9.1" GroupID ="org.apache.opennlp" />
+    <MavenReference Include="opennlp-uima" Version="1.9.1" GroupID ="org.apache.opennlp" />
+    <MavenReference Include="opennlp-morfologik-addon" Version="1.9.1" GroupID ="org.apache.opennlp" />
+    <MavenReference Include="opennlp-brat-annotator" Version="1.9.1" GroupID ="org.apache.opennlp" />
+  </ItemGroup>
 </Project>

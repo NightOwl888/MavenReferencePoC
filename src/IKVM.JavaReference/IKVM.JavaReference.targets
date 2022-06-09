@@ -1,0 +1,244 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <!-- Set to false to exclude the $(MSBuildProjectName).targets file from being automatically packed with the project -->
+    <IncludeIKVMJavaReferenceTargetsFile Condition=" '$(IncludeIKVMJavaReferenceTargetsFile)' == '' ">true</IncludeIKVMJavaReferenceTargetsFile>
+
+    <NeedsJDK Condition=" '$(JAVA_HOME)' == '' Or $(JAVA_HOME.ToUpperInvariant().Contains('JDK')) != true ">true</NeedsJDK>
+    <MavenHome Condition=" '$(MavenHome)' == '' And '$(MAVEN_HOME)' == '' ">$(MAVEN_HOME)</MavenHome>
+    <NeedsMaven Condition=" '$(MavenHome)' == '' ">true</NeedsMaven>
+    <!-- We move this up a directory so we use the same maven installation for all target frameworks -->
+    <MavenDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../maven'))</MavenDir>
+    <MavenInstallVersion>3.8.5</MavenInstallVersion>
+    <MavenHome Condition=" '$(MavenHome)' == '' ">$(MavenDir)/apache-maven-$(MavenInstallVersion)</MavenHome>
+    <MavenBinPath>$([System.IO.Path]::Combine('$(MavenHome)', 'bin'))</MavenBinPath>
+    
+    <JavaIntermediatePath>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)', 'jar'))</JavaIntermediatePath>
+    
+    <MavenGroupId>$(AssemblyName.ToLowerInvariant())</MavenGroupId>
+    <MavenGroupId Condition=" '$(RootNamespace)' != '' ">$(RootNamespace.ToLowerInvariant())</MavenGroupId>
+    <MavenArtifactId>$(AssemblyName.ToLowerInvariant())</MavenArtifactId>
+    <MavenArtifactId Condition=" '$(PackageId)' != '' ">$(PackageId.ToLowerInvariant())</MavenArtifactId>
+    <MavenVersion>$(Version)</MavenVersion>
+    <MavenVersion Condition=" '$(AssemblyVersion)' != '' ">$(AssemblyVersion)</MavenVersion>
+    <MavenVersion Condition=" '$(PackageVersion)' != '' ">$(PackageVersion)</MavenVersion>
+  </PropertyGroup>
+
+  <!-- TODO: allow these urls to be externally configured -->
+  <ItemGroup>
+    <MavenDownloadUrl Include="https://dlcdn.apache.org/maven/maven-3/$(MavenInstallVersion)/binaries/apache-maven-$(MavenInstallVersion)-bin.zip" />
+  </ItemGroup>
+
+  <Target Name="InstallMaven" BeforeTargets="ResolveMavenReferences" Condition=" '$(NeedsMaven.ToUpperInvariant())' == 'true' ">
+
+    <Message Importance="high" Text="Installing Maven..."/>
+    
+    <!-- We are assuming this file will be in the .nuget cache after being installed via NuGet -->
+    <PropertyGroup>
+      <MavenZipFilePath>$(MavenDir)/maven.zip</MavenZipFilePath>
+    </PropertyGroup>
+
+    <DownloadFileWithFallback Urls="@(MavenDownloadUrl)" DestinationFilePath="$(MavenZipFilePath)" Condition=" !Exists('$(MavenZipFilePath)')">
+      <Output PropertyName="IsMavenFileDownloaded" TaskParameter="Successful" />
+    </DownloadFileWithFallback>
+
+    <Error Condition=" '$(IsMavenFileDownloaded)' != 'true' And !Exists('$(MavenZipFilePath)') " Text="The build cannot continue without $(MavenZipFilePath). Use the Maven Download Page (https://maven.apache.org/download.cgi) to download and install (https://maven.apache.org/install.html) it manually. It is recommended to install it at the operating system level and set the MAVEN_HOME environment variable." />
+
+    <Unzip SourceFiles="$(MavenZipFilePath)" DestinationFolder="$(MavenDir)" OverwriteReadOnlyFiles="true" Condition=" '$(IsMavenFileDownloaded)' == 'true' " />
+    
+    <Delete Files="$(MavenZipFilePath)" />
+  
+    <Message Importance="high" Text="[SUCCESS] Maven Installed"/>
+  </Target>
+
+  <Target Name="ResolveMavenReferences" BeforeTargets="BeforeResolveReferences" Condition=" '@(MavenReference->Count())' &gt; 0 ">
+
+    <Message Importance="high" Text="MavenHome: $(MavenHome)"/>
+    <Error Condition="!Exists('$(MavenHome)')" Text="MavenHome directory `$(MavenHome)` does not exist. You must install Maven to continue."/>
+    <Error Condition=" $(MavenHome.EndsWith('/bin')) Or $(MavenHome.EndsWith('\bin')) " Text="MAVEN_HOME must not point to the 'bin' directory. Instead, MAVEN_HOME/bin should be added to your system PATH."/>
+    <Error Condition=" '$(NeedsJDK.ToLowerInvariant())' == 'true' " Text="OpenJDK 9 or higher is required to be installed on the host machine to continue. See: https://www.oracle.com/java/technologies/downloads/." />
+    
+    <PropertyGroup>
+      <MavenGroupId>$(AssemblyName.ToLowerInvariant())</MavenGroupId>
+      <MavenGroupId Condition=" '$(RootNamespace)' != '' ">$(RootNamespace.ToLowerInvariant())</MavenGroupId>
+      <MavenArtifactId>$(AssemblyName.ToLowerInvariant())</MavenArtifactId>
+      <MavenArtifactId Condition=" '$(PackageId)' != '' ">$(PackageId.ToLowerInvariant())</MavenArtifactId>
+      <MavenVersion>$(Version)</MavenVersion>
+      <MavenVersion Condition=" '$(AssemblyVersion)' != '' ">$(AssemblyVersion)</MavenVersion>
+      <MavenVersion Condition=" '$(PackageVersion)' != '' ">$(PackageVersion)</MavenVersion>
+      <MavenPomFileName>$(JavaIntermediatePath)/pom.xml</MavenPomFileName>
+    </PropertyGroup>
+
+    <WriteMavenPomFile GroupId="$(MavenGroupId)" ArtifactId="$(MavenArtifactId)" Version="$(MavenVersion)" MavenReferences="@(MavenReference)" OutputFilePath="$(MavenPomFileName)" />
+
+    <PropertyGroup>
+      <MavenResolveCmd>$(MavenBinPath)/mvn</MavenResolveCmd>
+      <MavenResolveCmd>$(MavenResolveCmd) dependency:copy-dependencies</MavenResolveCmd>
+      <MavenResolveCmd>$(MavenResolveCmd) -DoutputDirectory=&quot;$(JavaIntermediatePath)&quot;</MavenResolveCmd>
+      <MavenResolveCmd>$(MavenResolveCmd) -DincludeScope=compile</MavenResolveCmd>
+      <MavenResolveCmd>$(MavenResolveCmd) -DargLine=&quot;-Xms512m&quot;</MavenResolveCmd>
+      <MavenResolveCmd>$(MavenResolveCmd) -DargLine=&quot;-Xmx1024m&quot;</MavenResolveCmd>
+      <!-- Allow the user to supply additional parameters through <ItemGroup><MavenParameter Include=""/></ItemGroup> -->
+      <MavenResolveCmd Condition=" '@(MavenParameter->Count())' &gt; 0 ">$(MavenResolveCmd) @(MavenParameter, ' ')</MavenResolveCmd>
+    </PropertyGroup>
+
+    <Exec Command="$(MavenResolveCmd)" ConsoleToMsBuild="true" WorkingDirectory="$(JavaIntermediatePath)" />
+  </Target>
+
+  <UsingTask TaskName="WriteMavenPomFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildBinPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <GroupId ParameterType="System.String" Required="true" />
+      <ArtifactId ParameterType="System.String" Required="true" />
+      <Version ParameterType="System.String" Required="true" />
+      <MavenReferences ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputFilePath ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text" />
+      <Using Namespace="System.Xml" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+          Log.LogMessage(MessageImportance.High, $"Writing POM file to '{OutputFilePath}'.");
+          var currentDirectory = Path.GetDirectoryName(OutputFilePath.ToString());
+          var fileName = Path.GetFileName(OutputFilePath.ToString());
+          var parentFilePath = Path.Combine(Directory.GetParent(currentDirectory).FullName, fileName);
+          Directory.CreateDirectory(currentDirectory);
+          var settings = new XmlWriterSettings
+          {
+              Encoding = new UTF8Encoding(false, true),
+              Indent = true
+          };
+          using (var w = XmlWriter.Create(OutputFilePath.ToString(), settings))
+          {
+              w.WriteStartElement("project", "http://maven.apache.org/POM/4.0.0");
+              w.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
+              w.WriteAttributeString("xmlns", "schemaLocation", null, "http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd");
+
+              w.WriteStartElement("modelVersion");
+              w.WriteValue("4.0.0");
+              w.WriteEndElement();
+
+              // Import parent pom.xml file if it exists.
+              // This allows the user to create a project-level pom.xml file to configure
+              // maven repository URLs and credentials. They can also configure
+              // additional parent pom.xml files if they so choose.
+              // TODO: Is there a way to utilize the Credential Manager?
+              if (File.Exists(parentFilePath))
+              {
+                  w.WriteStartElement("parent");
+
+                  w.WriteStartElement("groupId");
+                  w.WriteValue(GroupId.ToString());
+                  w.WriteEndElement();
+
+                  w.WriteStartElement("artifactId");
+                  w.WriteValue(ArtifactId.ToString());
+                  w.WriteEndElement();
+
+                  w.WriteStartElement("version");
+                  w.WriteValue(Version.ToString());
+                  w.WriteEndElement();
+
+                  w.WriteStartElement("relativePath");
+                  w.WriteValue("../" + fileName);
+                  w.WriteEndElement();
+
+                  w.WriteEndElement(); // parent
+              }
+
+              w.WriteStartElement("groupId");
+              w.WriteValue(GroupId.ToString());
+              w.WriteEndElement();
+
+              w.WriteStartElement("artifactId");
+              w.WriteValue(ArtifactId.ToString());
+              w.WriteEndElement();
+
+              w.WriteStartElement("version");
+              w.WriteValue(Version.ToString());
+              w.WriteEndElement();
+
+              w.WriteStartElement("dependencies");
+
+              foreach (var reference in MavenReferences)
+              {
+                  w.WriteStartElement("dependency");
+
+                  var groupId = reference.GetMetadata("GroupId");
+                  if (!string.IsNullOrWhiteSpace(groupId))
+                  {
+                      w.WriteElementString("groupId", groupId);
+                  }
+
+                  var artifactId = reference.ItemSpec;
+                  if (!string.IsNullOrWhiteSpace(artifactId))
+                  {
+                      w.WriteElementString("artifactId", artifactId);
+                  }
+
+                  var version = reference.GetMetadata("Version");
+                  if (!string.IsNullOrWhiteSpace(version))
+                  {
+                      w.WriteElementString("version", version);
+                  }
+
+                  w.WriteEndElement(); // dependency
+              }
+
+              w.WriteEndElement(); // dependencies
+
+              w.WriteEndElement(); // project
+          }
+          Log.LogMessage(MessageImportance.High, $"[SUCCESS] Wrote '{OutputFilePath}'.");
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <UsingTask TaskName="DownloadFileWithFallback" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildBinPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Urls ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <DestinationFilePath ParameterType="System.String" Required="true" />
+      <Successful ParameterType="System.Boolean" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.Net" />
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+        Successful = false;
+        Directory.CreateDirectory(Path.GetDirectoryName(DestinationFilePath.ToString()));
+        using var client = new WebClient();
+        foreach (var url in Urls)
+        {
+            try
+            {
+                var tempFile = Path.GetDirectoryName(DestinationFilePath.ToString()) + Path.DirectorySeparatorChar + Guid.NewGuid().ToString();
+                client.DownloadFile(url.ToString(), tempFile);
+                File.Move(tempFile, DestinationFilePath.ToString());
+                Successful = true;
+                Log.LogMessage(MessageImportance.High, $"[SUCCESS] Downloaded {DestinationFilePath} from {url}");
+                break;
+            }
+            catch (Exception e)
+            {
+                Log.LogMessage(MessageImportance.High, $"[ERROR] Downloading {DestinationFilePath} from {url} failed: {e}");
+                continue;
+            }
+        }
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <!-- Re-package this file in any dependent NuGet package, so projects that depend on it also include MavenReference and JavaReference by default -->
+  <ItemGroup Condition=" '$(IncludeIKVMJavaReferenceTargetsFile.ToLowerInvariant())' == 'true' ">
+    <None Include="$(MSBuildThisFileFullPath)" Link="$(MSBuildProjectName).targets" Pack="true" PackagePath="build/$(MSBuildProjectName).targets" Visible="false" />
+  </ItemGroup>
+  
+  <!-- TODO: Re-define any MavenReference and JavaReference elements in the copy of the .targets file so the project that depends on this one also has them. -->
+  
+</Project>
