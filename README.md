@@ -14,7 +14,7 @@ The `IKVM.JavaReference.targets` file also attempts to use the `MAVEN_HOME` envi
 
 ## Prerequisites
 
-- OpenJDK 9 or higher
+- [OpenJDK 9 or higher](https://www.oracle.com/java/technologies/downloads/)
 - `JAVA_HOME` must be configured to use a JDK (the directory name must include "jdk" in it)
 - Visual Studio 2019 or higher
 
