@@ -9,7 +9,7 @@
     <NeedsMaven Condition=" '$(MavenHome)' == '' ">true</NeedsMaven>
     <!-- We move this up a directory so we use the same maven installation for all target frameworks -->
     <MavenDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../maven'))</MavenDir>
-    <MavenInstallVersion>3.8.5</MavenInstallVersion>
+    <MavenInstallVersion>3.8.6</MavenInstallVersion>
     <MavenHome Condition=" '$(MavenHome)' == '' ">$(MavenDir)/apache-maven-$(MavenInstallVersion)</MavenHome>
     <MavenBinPath>$([System.IO.Path]::Combine('$(MavenHome)', 'bin'))</MavenBinPath>
     
@@ -27,6 +27,7 @@
   <!-- TODO: allow these urls to be externally configured -->
   <ItemGroup>
     <MavenDownloadUrl Include="https://dlcdn.apache.org/maven/maven-3/$(MavenInstallVersion)/binaries/apache-maven-$(MavenInstallVersion)-bin.zip" />
+    <MavenDownloadUrl Include="https://archive.apache.org/dist/maven/maven-3/$(MavenInstallVersion)/binaries/apache-maven-$(MavenInstallVersion)-bin.zip" />
   </ItemGroup>
 
   <Target Name="InstallMaven" BeforeTargets="ResolveMavenReferences" Condition=" '$(NeedsMaven.ToUpperInvariant())' == 'true' ">
